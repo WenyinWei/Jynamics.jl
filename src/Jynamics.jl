@@ -1,4 +1,4 @@
-module Juna
+module Jynamics
 
 include("Cylind.jl")
 
