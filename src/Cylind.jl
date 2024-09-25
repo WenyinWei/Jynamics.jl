@@ -29,8 +29,79 @@ end
 function Base.:*(a::Number, v::CylindricalVectorField)
     return CylindricalVectorField(v.R, v.Z, v.Phi, a * v.VR, a * v.VZ, a * v.VPhi)
 end
+function get_VR(v::CylindricalVectorField)
+    return CylindricalScalarField(v.R, v.Z, v.Phi, v.VR)
+end
+function get_VZ(v::CylindricalVectorField)
+    return CylindricalScalarField(v.R, v.Z, v.Phi, v.VZ)
+end
+function get_VPhi(v::CylindricalVectorField)
+    return CylindricalScalarField(v.R, v.Z, v.Phi, v.VPhi)
+end
+
+@memoize function pRpZ(s::CylindricalScalarField, Rord, Zord)
+    dR = s.R[2]-s.R[1]
+    dZ = s.Z[2]-s.Z[1]
+
+    if Rord==0 && Zord==0
+        return s
+    elseif Rord > 0
+        lastord_field = pRpZ(s, Rord-1, Zord).value
+        thisord_field = similar(s.value)
+        thisord_field[:,:,:] .= NaN
+        thisord_field[2:end-1,:,:] = (lastord_field[3:end,:,:]- lastord_field[1:end-2,:,:]) / (2dR)
+        return CylindricalScalarField( s.R, s.Z, s.Phi, thisord_field )
+    elseif Zord > 0 
+        lastord_field = pRpZ(s, Rord, Zord-1).value
+        thisord_field = similar(s.value)
+        thisord_field[:,:,:] .= NaN
+        thisord_field[:,2:end-1,:] = (lastord_field[:,3:end,:]- lastord_field[:,1:end-2,:]) / (2dZ)
+        return CylindricalScalarField( s.R, s.Z, s.Phi, thisord_field )
+    end
+end
+using Interpolations
+@memoize function pRpZ_interp(s::CylindricalScalarField, Rord, Zord)
+    return linear_interpolation( 
+            (s.R, s.Z, s.Phi), pRpZ(s, Rord, Zord).value )
+end
+
+using TensorCast
+function A()
+    
+    BR_pR = pRpZ(BR,1,0);
+    BR_pZ = pRpZ(BR,0,1);
+    BZ_pR = pRpZ(BZ,1,0);
+    BZ_pZ = pRpZ(BZ,0,1);
+    BPhi_pR = pRpZ(BPhi,1,0);
+    BPhi_pZ = pRpZ(BPhi,0,1);
+    BR_pert_pR = pRpZ(BR_pert,1,0);
+    BR_pert_pZ = pRpZ(BR_pert,0,1);
+    BZ_pert_pR = pRpZ(BZ_pert,1,0);
+    BZ_pert_pZ = pRpZ(BZ_pert,0,1);
+    BPhi_pert_pR = pRpZ(BPhi_pert,1,0);
+    BPhi_pert_pZ = pRpZ(BPhi_pert,0,1);
+
+    temp1 = BR_pert ./ BPhi - BR .* BPhi_pert ./ (BPhi.^2);
+    temp2 = BR_pert_pR ./ BPhi - BR_pR ./ (BPhi.^2) .* BPhi_pert - BPhi_pR ./ (BPhi.^2) .* BR_pert - BR .* (  BPhi_pert_pR .* (BPhi.^2) - 2 * BPhi_pR .* BPhi .* BPhi_pert ) ./ (BPhi.^4);
+    @cast A11_delta_DeltaB[iR,iZ,iPhi] := temp1[iR,iZ,iPhi] + R[iR] * temp2[iR,iZ,iPhi];
+
+    temp1 = BZ_pert ./ BPhi - BZ .* BPhi_pert ./ (BPhi.^2);
+    temp2 = BZ_pert_pR ./ BPhi - BZ_pR ./ (BPhi.^2) .* BPhi_pert - BPhi_pR ./ (BPhi.^2) .* BZ_pert - BZ .* (  BPhi_pert_pR .* (BPhi.^2) - 2 * BPhi_pR .* BPhi .* BPhi_pert ) ./ (BPhi.^4);
+    @cast A21_delta_DeltaB[iR,iZ,iPhi] := temp1[iR,iZ,iPhi] + R[iR] * temp2[iR,iZ,iPhi];
+
+    temp2 = BR_pert_pZ ./ BPhi - BR_pZ ./ (BPhi.^2) .* BPhi_pert - BPhi_pZ ./ (BPhi.^2) .* BR_pert - BR .* (  BPhi_pert_pZ .* (BPhi.^2) - 2 * BPhi_pZ .* BPhi .* BPhi_pert ) ./ (BPhi.^4);
+    @cast A12_delta_DeltaB[iR,iZ,iPhi] :=                   + R[iR] * temp2[iR,iZ,iPhi];
+
+    temp2 = BZ_pert_pZ ./ BPhi - BZ_pZ ./ (BPhi.^2) .* BPhi_pert - BPhi_pZ ./ (BPhi.^2) .* BZ_pert - BZ .* (  BPhi_pert_pZ .* (BPhi.^2) - 2 * BPhi_pZ .* BPhi .* BPhi_pert ) ./ (BPhi.^4);
+    @cast A22_delta_DeltaB[iR,iZ,iPhi] :=                   + R[iR] * temp2[iR,iZ,iPhi];
 
 
+    A11_delta_DeltaB_interp = linear_interpolation((R,Z,Phi), A11_delta_DeltaB);
+    A12_delta_DeltaB_interp = linear_interpolation((R,Z,Phi), A12_delta_DeltaB);
+    A21_delta_DeltaB_interp = linear_interpolation((R,Z,Phi), A21_delta_DeltaB);
+    A22_delta_DeltaB_interp = linear_interpolation((R,Z,Phi), A22_delta_DeltaB);
+    @inline A_delta_DeltaB(r,z,phi) = [A11_delta_DeltaB_interp(r,z,phi) A12_delta_DeltaB_interp(r,z,phi); A21_delta_DeltaB_interp(r,z,phi) A22_delta_DeltaB_interp(r,z,phi);]
+end
 
 
 function divergence(v::CylindricalVectorField)
@@ -48,7 +119,6 @@ function divergence(v::CylindricalVectorField)
 end
 
 function magnitude(v::CylindricalVectorField)
-    return CylindricalScalarField(v.R, v.Z, v.Phi, sqrt.(v.VR.^2 .+ v.VZ.^2 .+ v.VPhi.^2) )
     return CylindricalScalarField(v.R, v.Z, v.Phi, sqrt.(v.VR.^2 .+ v.VZ.^2 .+ v.VPhi.^2) )
 end
 
