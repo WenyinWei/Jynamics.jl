@@ -1,6 +1,6 @@
 module Cylind
 
-export CylindricalScalarField, CylindricalVectorField, divergence, magnitude, cross, directional_derivative_along_v_of_s, directional_derivative_along_v1_of_v2
+export CylindricalScalarField
 
 struct CylindricalScalarField{T}
     R::Vector{T}
@@ -9,11 +9,60 @@ struct CylindricalScalarField{T}
     value::Array{T,3}
 end
 function Base.:+(s1::CylindricalScalarField, s2::CylindricalScalarField)
-    return CylindricalVectorField(s.R, s.Z, s.Phi, s1.value + s2.value)
+    return CylindricalScalarField(s.R, s.Z, s.Phi, s1.value + s2.value)
 end
 function Base.:*(a::Number, s::CylindricalScalarField)
-    return CylindricalVectorField(s.R, s.Z, s.Phi, a * s.value)
+    return CylindricalScalarField(s.R, s.Z, s.Phi, a * s.value)
 end
+
+using Memoization
+@memoize function pRpZ(s::Array{Number,2}, Rord::Int, Zord::Int, R::Array{Number,1}, Z::Array{Number,1})
+    dR = R[2]-R[1]
+    dZ = Z[2]-Z[1]
+
+    if Rord==0 && Zord==0
+        return s
+    elseif Rord > 0
+        lastord_field = pRpZ(s, Rord-1, Zord, R, Z)
+        thisord_field = similar(s)
+        thisord_field[:,:,:] .= NaN
+        thisord_field[2:end-1,:,:] = (lastord_field[3:end,:,:]- lastord_field[1:end-2,:,:]) / (2dR)
+        return thisord_field
+    elseif Zord > 0 
+        lastord_field = pRpZ(s, Rord, Zord-1, R, Z)
+        thisord_field = similar(s)
+        thisord_field[:,:,:] .= NaN
+        thisord_field[:,2:end-1,:] = (lastord_field[:,3:end,:]- lastord_field[:,1:end-2,:]) / (2dZ)
+        return thisord_field
+    end
+end
+@inline @memoize function pRpZ(s::CylindricalScalarField, Rord::Int, Zord::Int)
+    return CylindricalScalarField( s.R, s.Z, s.Phi, pRpZ(s.value, Rord, Zord, R, Z) )
+end
+
+using Interpolations
+@memoize function pRpZ_interp(s::CylindricalScalarField, Rord, Zord)
+    return linear_interpolation( 
+            (s.R, s.Z, s.Phi), pRpZ(s, Rord, Zord).value )
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+export CylindricalVectorField, get_VR, get_VZ, get_VPhi, RVpoloBPhi_pRpZ, RVpoloBPhi_pRpZ_interp, RVpoloBPhi_pRpZ, RVpoloBPhi_pRpZ_interp, divergence, magnitude, cross, directional_derivative_along_v_of_s, directional_derivative_along_v1_of_v2
 
 struct CylindricalVectorField{T}
     R::Vector{T}
@@ -29,6 +78,7 @@ end
 function Base.:*(a::Number, v::CylindricalVectorField)
     return CylindricalVectorField(v.R, v.Z, v.Phi, a * v.VR, a * v.VZ, a * v.VPhi)
 end
+
 function get_VR(v::CylindricalVectorField)
     return CylindricalScalarField(v.R, v.Z, v.Phi, v.VR)
 end
@@ -39,47 +89,51 @@ function get_VPhi(v::CylindricalVectorField)
     return CylindricalScalarField(v.R, v.Z, v.Phi, v.VPhi)
 end
 
-@memoize function pRpZ(s::CylindricalScalarField, Rord, Zord)
-    dR = s.R[2]-s.R[1]
-    dZ = s.Z[2]-s.Z[1]
 
-    if Rord==0 && Zord==0
-        return s
-    elseif Rord > 0
-        lastord_field = pRpZ(s, Rord-1, Zord).value
-        thisord_field = similar(s.value)
-        thisord_field[:,:,:] .= NaN
-        thisord_field[2:end-1,:,:] = (lastord_field[3:end,:,:]- lastord_field[1:end-2,:,:]) / (2dR)
-        return CylindricalScalarField( s.R, s.Z, s.Phi, thisord_field )
-    elseif Zord > 0 
-        lastord_field = pRpZ(s, Rord, Zord-1).value
-        thisord_field = similar(s.value)
-        thisord_field[:,:,:] .= NaN
-        thisord_field[:,2:end-1,:] = (lastord_field[:,3:end,:]- lastord_field[:,1:end-2,:]) / (2dZ)
-        return CylindricalScalarField( s.R, s.Z, s.Phi, thisord_field )
-    end
+using Memoization
+@memoize function RVpoloBPhi_pRpZ(v::CylindricalVectorField)
+    R = v.R
+    BR, BZ, BPhi = v.VR, v.VZ, v.VPhi
+    BRoBPhi  = get_VR(v) ./ get_VPhi(v)
+    BZoBPhi  = get_VZ(v) ./ get_VPhi(v)
+
+    A11 = BR./BPhi + R.*pRpZ( BRoBPhi,1,0).value ;
+    A12 =            R.*pRpZ( BRoBPhi,0,1).value ;
+    A21 = BZ./BPhi + R.*pRpZ( BZoBPhi,1,0).value ;
+    A22 =            R.*pRpZ( BZoBPhi,0,1).value ;
+
+    return A11, A12, A21, A22
 end
-using Interpolations
-@memoize function pRpZ_interp(s::CylindricalScalarField, Rord, Zord)
-    return linear_interpolation( 
-            (s.R, s.Z, s.Phi), pRpZ(s, Rord, Zord).value )
+
+@memoize function RVpoloBPhi_pRpZ_interp(v::CylindricalVectorField)
+    R, Z, Phi = v.R, v.Z, v.Phi
+    A11, A12, A21, A22 = RVpoloBPhi_pRpZ(v)
+    A11_intp = linear_interpolation( (R,Z,Phi), A11 );
+    A12_intp = linear_interpolation( (R,Z,Phi), A12 );
+    A21_intp = linear_interpolation( (R,Z,Phi), A21 );
+    A22_intp = linear_interpolation( (R,Z,Phi), A22 );
+
+    return (r,z,phi) -> [A11_intp(r,z,phi)  A12_intp(r,z,phi); A21_intp(r,z,phi)  A22_intp(r,z,phi)]
 end
+
 
 using TensorCast
-function A()
-    
-    BR_pR = pRpZ(BR,1,0);
-    BR_pZ = pRpZ(BR,0,1);
-    BZ_pR = pRpZ(BZ,1,0);
-    BZ_pZ = pRpZ(BZ,0,1);
-    BPhi_pR = pRpZ(BPhi,1,0);
-    BPhi_pZ = pRpZ(BPhi,0,1);
-    BR_pert_pR = pRpZ(BR_pert,1,0);
-    BR_pert_pZ = pRpZ(BR_pert,0,1);
-    BZ_pert_pR = pRpZ(BZ_pert,1,0);
-    BZ_pert_pZ = pRpZ(BZ_pert,0,1);
-    BPhi_pert_pR = pRpZ(BPhi_pert,1,0);
-    BPhi_pert_pZ = pRpZ(BPhi_pert,0,1);
+function RVpoloBPhi_pRpZ(v::CylindricalVectorField, v_pert::CylindricalVectorField)
+    R, Z, Phi = v.R, v.Z, v.Phi
+    BRfield, BZfield, BPhifield = get_VR(v), get_VZ(v), get_VPhi(v)
+
+    BR_pR = pRpZ( BRfield, 1, 0);
+    BR_pZ = pRpZ( BRfield, 0, 1);
+    BZ_pR = pRpZ( get_VZ(v), 1, 0);
+    BZ_pZ = pRpZ( get_VZ(v), 0, 1);
+    BPhi_pR = pRpZ( get_VPhi(v), 1, 0);
+    BPhi_pZ = pRpZ( get_VPhi(v), 0, 1);
+    BR_pert_pR = pRpZ( get_VR(v_pert), 1, 0);
+    BR_pert_pZ = pRpZ( get_VR(v_pert), 0, 1);
+    BZ_pert_pR = pRpZ( get_VZ(v_pert), 1, 0);
+    BZ_pert_pZ = pRpZ( get_VZ(v_pert), 0, 1);
+    BPhi_pert_pR = pRpZ( get_VPhi(v_pert), 1, 0);
+    BPhi_pert_pZ = pRpZ( get_VPhi(v_pert), 0, 1);
 
     temp1 = BR_pert ./ BPhi - BR .* BPhi_pert ./ (BPhi.^2);
     temp2 = BR_pert_pR ./ BPhi - BR_pR ./ (BPhi.^2) .* BPhi_pert - BPhi_pR ./ (BPhi.^2) .* BR_pert - BR .* (  BPhi_pert_pR .* (BPhi.^2) - 2 * BPhi_pR .* BPhi .* BPhi_pert ) ./ (BPhi.^4);
