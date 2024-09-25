@@ -12,7 +12,7 @@ function Base.:+(s1::CylindricalScalarField, s2::CylindricalScalarField)
     return CylindricalVectorField(s.R, s.Z, s.Phi, s1.value + s2.value)
 end
 function Base.:*(a::Number, s::CylindricalScalarField)
-    return CylindricalVectorField(s.R, s.Z, s.Phi, a * s.value, a * s.value)
+    return CylindricalVectorField(s.R, s.Z, s.Phi, a * s.value)
 end
 
 struct CylindricalVectorField{T}
