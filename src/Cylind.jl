@@ -49,6 +49,7 @@ end
 
 function magnitude(v::CylindricalVectorField)
     return CylindricalScalarField(v.R, v.Z, v.Phi, sqrt.(v.VR.^2 .+ v.VZ.^2 .+ v.VPhi.^2) )
+    return CylindricalScalarField(v.R, v.Z, v.Phi, sqrt.(v.VR.^2 .+ v.VZ.^2 .+ v.VPhi.^2) )
 end
 
 function cross(v1::CylindricalVectorField, v2::CylindricalVectorField)
