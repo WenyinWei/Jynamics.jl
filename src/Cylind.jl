@@ -8,6 +8,13 @@ struct CylindricalScalarField{T}
     Phi::Vector{T}
     value::Array{T,3}
 end
+function Base.:+(s1::CylindricalScalarField, s2::CylindricalScalarField)
+    return CylindricalVectorField(s.R, s.Z, s.Phi, s1.value + s2.value)
+end
+function Base.:*(a::Float64, s::CylindricalScalarField)
+    return CylindricalVectorField(s.R, s.Z, s.Phi, a * s.value, a * s.value)
+end
+
 struct CylindricalVectorField{T}
     R::Vector{T}
     Z::Vector{T}
@@ -16,6 +23,15 @@ struct CylindricalVectorField{T}
     VZ::Array{T,3}
     VPhi::Array{T,3}
 end
+function Base.:+(v1::CylindricalVectorField, v2::CylindricalVectorField)
+    return CylindricalVectorField(v1.R, v1.Z, v1.Phi, v1.VR + v2.VR, v1.VZ + v2.VZ, v1.VPhi + v2.VPhi)
+end
+function Base.:*(a::Float64, v::CylindricalVectorField)
+    return CylindricalVectorField(v.R, v.Z, v.Phi, a * v.VR, a * v.VZ, a * v.VPhi)
+end
+
+
+
 
 function divergence(v::CylindricalVectorField)
     dR = v.R[2]-v.R[1];
@@ -32,7 +48,7 @@ function divergence(v::CylindricalVectorField)
 end
 
 function magnitude(v::CylindricalVectorField)
-    return .√(v.VR.^2 .+ v.VZ.^2 .+ v.VPhi.^2 )
+    return CylindricalScalarField(v.R, v.Z, v.Phi, sqrt.(v.VR.^2 .+ v.VZ.^2 .+ v.VPhi.^2) )
 end
 
 function cross(v1::CylindricalVectorField, v2::CylindricalVectorField)
