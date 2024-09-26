@@ -212,6 +212,26 @@ function directional_derivative_along_v_of_s(v::CylindricalVectorField, s::Cylin
 end
 
 function directional_derivative_along_v1_of_v2(v1::CylindricalVectorField, v2::CylindricalVectorField)
+    """v1 is the direction, v2 is the field
+    
+    ```math
+    \\vec{v}\\cdot\\nabla (u) = v_{R} \\dfrac{\\partial (u)}{\\partial R} + v_{Z} \\dfrac{\\partial (u)}{\\partial Z} +  \\dfrac{v_{\\phi}}{R} \\dfrac{\\partial (u)}{\\partial \\phi}
+
+    \\vec{v}_{1}\\cdot\\nabla (\\vec{v}_{2}) = v_{1,R} \\dfrac{\\partial (\\vec{v}_{2})}{\\partial R} + v_{1,Z} \\dfrac{\\partial (\\vec{v}_{2})}{\\partial Z} +  \\dfrac{v_{1,\\phi}}{R} \\dfrac{\\partial (\\vec{v}_{2})}{\\partial \\phi}
+    =v_{1,R}(\\dfrac{\\partial v_{2,R} }{\\partial R} \\hat{\\vec{e}}_{R} + \\dfrac{\\partial v_{2,Z} }{\\partial R} \\hat{\\vec{e}}_{Z}   +\\dfrac{\\partial v_{2,\\phi} }{\\partial R} \\hat{\\vec{e}}_{\\phi}    ) 
+    +v_{1,Z}(\\dfrac{\\partial v_{2,R} }{\\partial Z} \\hat{\\vec{e}}_{R} + \\dfrac{\\partial v_{2,Z} }{\\partial Z} \\hat{\\vec{e}}_{Z}   +\\dfrac{\\partial v_{2,\\phi} }{\\partial Z} \\hat{\\vec{e}}_{\\phi}    ) 
+    +\\dfrac{v_{1,\\phi}}{R}(\\dfrac{\\partial v_{2,R} }{\\partial \\phi} \\hat{\\vec{e}}_{R} + \\dfrac{\\partial v_{2,Z} }{\\partial \\phi} \\hat{\\vec{e}}_{Z}   +\\dfrac{\\partial v_{2,\\phi} }{\\partial \\phi} \\hat{\\vec{e}}_{\\phi}    ) 
+    +\\dfrac{v_{1,\\phi}}{R}(v_{2,R} \\hat{\\vec{e}}_{\\phi} + \\qquad \\cdots\\qquad   -  v_{2,\\phi} \\hat{\\vec{e}}_{R}    ) 
+
+    \\hat{\\vec{e}}_{R}= \\cos\\phi \\hat{\\vec{e}}_{x} + \\sin\\phi \\hat{\\vec{e}}_{y}
+
+    \\hat{\\vec{e}}_{\\phi}= -\\sin\\phi \\hat{\\vec{e}}_{x} + \\cos\\phi \\hat{\\vec{e}}_{y}
+
+    \\dfrac{\\partial \\hat{\\vec{e}}_{R} }{\\partial \\phi} = \\hat{\\vec{e}}_{\\phi} 
+
+    \\dfrac{\\partial \\hat{\\vec{e}}_{\\phi} }{\\partial \\phi} = -\\hat{\\vec{e}}_{R} 
+    ```
+    """
     R, Z, Phi = v1.R, v1.Z, v1.Phi
     
     dR = R[2]-R[1]
