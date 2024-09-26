@@ -8,8 +8,8 @@ struct CylindricalScalarField{T}
     nSym::Int
 end
 
-function CylindricalScalarField{T}(R::Vector{T}, Z::Vector{T}, Phi::Vector{T}, value::Array{T,3}; nSym::Int = 1)
-    return CylindricalScalarField(R, Z, Phi, value, nSym)
+function CylindricalScalarField(R::Vector{T}, Z::Vector{T}, Phi::Vector{T}, value::Array{T,3}; nSym::Int=1) where T
+    return CylindricalScalarField{T}(R, Z, Phi, value, nSym)
 end
 
 function Base.:+(s1::CylindricalScalarField, s2::CylindricalScalarField)
@@ -70,8 +70,8 @@ struct CylindricalVectorField{T}
     nSym::Int
 end
 
-function CylindricalScalarField{T}(R::Vector{T}, Z::Vector{T}, Phi::Vector{T}, value::Array{T,3}; nSym::Int=1)
-    return CylindricalScalarField{T}(R, Z, Phi, value, nSym)
+function CylindricalVectorField(R::Vector{T}, Z::Vector{T}, Phi::Vector{T}, VR::Array{T,3}, VZ::Array{T,3}, VPhi::Array{T,3}; nSym::Int=1) where T
+    return CylindricalVectorField{T}(R, Z, Phi, VR, VZ, VPhi, nSym)
 end
 
 function Base.:+(v1::CylindricalVectorField, v2::CylindricalVectorField)
