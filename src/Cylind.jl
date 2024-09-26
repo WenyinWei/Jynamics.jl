@@ -11,9 +11,22 @@ end
 function Base.:+(s1::CylindricalScalarField, s2::CylindricalScalarField)
     return CylindricalScalarField(s.R, s.Z, s.Phi, s1.value + s2.value)
 end
+function Base.:.+(s1::CylindricalScalarField, s2::CylindricalScalarField)
+    return CylindricalScalarField(s.R, s.Z, s.Phi, s1.value .+ s2.value)
+end
 function Base.:*(a::Number, s::CylindricalScalarField)
     return CylindricalScalarField(s.R, s.Z, s.Phi, a * s.value)
 end
+function Base.:.*(a::Number, s::CylindricalScalarField)
+    return CylindricalScalarField(s.R, s.Z, s.Phi, a .* s.value)
+end
+function Base.:/(s::CylindricalScalarField, a::Number)
+    return CylindricalScalarField(s.R, s.Z, s.Phi, s.value / a)
+end
+function Base.:./(s::CylindricalScalarField, a::Number)
+    return CylindricalScalarField(s.R, s.Z, s.Phi, s.value ./ a)
+end
+
 
 using Memoization
 @memoize function pRpZ(s::Array{Number,2}, Rord::Int, Zord::Int, R::Array{Number,1}, Z::Array{Number,1})
@@ -75,9 +88,22 @@ end
 function Base.:+(v1::CylindricalVectorField, v2::CylindricalVectorField)
     return CylindricalVectorField(v1.R, v1.Z, v1.Phi, v1.VR + v2.VR, v1.VZ + v2.VZ, v1.VPhi + v2.VPhi)
 end
+function Base.:.+(v1::CylindricalVectorField, v2::CylindricalVectorField)
+    return CylindricalVectorField(v1.R, v1.Z, v1.Phi, v1.VR .+ v2.VR, v1.VZ .+ v2.VZ, v1.VPhi .+ v2.VPhi)
+end
 function Base.:*(a::Number, v::CylindricalVectorField)
     return CylindricalVectorField(v.R, v.Z, v.Phi, a * v.VR, a * v.VZ, a * v.VPhi)
 end
+function Base.:.*(a::Number, v::CylindricalVectorField)
+    return CylindricalVectorField(v.R, v.Z, v.Phi, a .* v.VR, a .* v.VZ, a .* v.VPhi)
+end
+function Base.:/(v::CylindricalVectorField, a::Number)
+    return CylindricalVectorField(v.R, v.Z, v.Phi, v.VR / a, v.VZ / a, v.VPhi / a)
+end
+function Base.:./(v::CylindricalVectorField, a::Number)
+    return CylindricalVectorField(v.R, v.Z, v.Phi, v.VR ./ a, v.VZ ./ a, v.VPhi ./ a)
+end
+
 
 function get_VR(v::CylindricalVectorField)
     return CylindricalScalarField(v.R, v.Z, v.Phi, v.VR)
@@ -104,7 +130,6 @@ using Memoization
 
     return A11, A12, A21, A22
 end
-
 @memoize function RVpoloBPhi_pRpZ_interp(v::CylindricalVectorField)
     R, Z, Phi = v.R, v.Z, v.Phi
     A11, A12, A21, A22 = RVpoloBPhi_pRpZ(v)
@@ -118,7 +143,7 @@ end
 
 
 using TensorCast
-function RVpoloBPhi_pRpZ(v::CylindricalVectorField, v_pert::CylindricalVectorField)
+function RVpoloBPhi_pRpZ_delta(v::CylindricalVectorField, v_pert::CylindricalVectorField)
     R, Z, Phi = v.R, v.Z, v.Phi
     BRfield, BZfield, BPhifield = get_VR(v), get_VZ(v), get_VPhi(v)
 
