@@ -5,18 +5,9 @@ include("File.jl")
 using .Cylind
 using .File
 
-# pick out the functions that are built-in
-builtin_functions = Set([:eval, :include])
-
-for name in names(Cylind, all=true)
-    # only export the functions that are not built-in
-    if !(name in builtin_functions)
-        @eval export $name
-    end
-end
-for name in names(File, all=true)
-    # only export the functions that are not built-in
-    if !(name in builtin_functions)
+# export all
+for name in names(@__MODULE__; all=true)
+    if Base.isidentifier(name) && name ∉ (Symbol(@__MODULE__), :eval, :include)
         @eval export $name
     end
 end

@@ -15,11 +15,9 @@ function VectorMatrix2Array(vec_of_mat)
     return arr3D
 end
 
-# pick out the functions that are built-in
-builtin_functions = Set([:eval, :include])
-
-for name in names(@__MODULE__, all=true)
-    if !(name in builtin_functions)
+# export all
+for name in names(@__MODULE__; all=true)
+    if Base.isidentifier(name) && name ∉ (Symbol(@__MODULE__), :eval, :include)
         @eval export $name
     end
 end
