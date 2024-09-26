@@ -1,35 +1,29 @@
 module Cylind
 
-export CylindricalScalarField
-
 struct CylindricalScalarField{T}
     R::Vector{T}
     Z::Vector{T}
     Phi::Vector{T}
     value::Array{T,3}
+    nSym::Int
 end
+
+function CylindricalScalarField{T}(R::Vector{T}, Z::Vector{T}, Phi::Vector{T}, value::Array{T,3}; nSym::Int = 1)
+    return CylindricalScalarField(R, Z, Phi, value, nSym)
+end
+
 function Base.:+(s1::CylindricalScalarField, s2::CylindricalScalarField)
     return CylindricalScalarField(s.R, s.Z, s.Phi, s1.value + s2.value)
-end
-function Base.:.+(s1::CylindricalScalarField, s2::CylindricalScalarField)
-    return CylindricalScalarField(s.R, s.Z, s.Phi, s1.value .+ s2.value)
 end
 function Base.:*(a::Number, s::CylindricalScalarField)
     return CylindricalScalarField(s.R, s.Z, s.Phi, a * s.value)
 end
-function Base.:.*(a::Number, s::CylindricalScalarField)
-    return CylindricalScalarField(s.R, s.Z, s.Phi, a .* s.value)
-end
 function Base.:/(s::CylindricalScalarField, a::Number)
     return CylindricalScalarField(s.R, s.Z, s.Phi, s.value / a)
 end
-function Base.:./(s::CylindricalScalarField, a::Number)
-    return CylindricalScalarField(s.R, s.Z, s.Phi, s.value ./ a)
-end
-
 
 using Memoization
-@memoize function pRpZ(s::Array{Number,2}, Rord::Int, Zord::Int, R::Array{Number,1}, Z::Array{Number,1})
+@memoize function pRpZ(s::Array, Rord::Int, Zord::Int, R::Vector, Z::Vector)
     dR = R[2]-R[1]
     dZ = Z[2]-Z[1]
 
@@ -49,12 +43,12 @@ using Memoization
         return thisord_field
     end
 end
-@inline @memoize function pRpZ(s::CylindricalScalarField, Rord::Int, Zord::Int)
+@memoize function pRpZ(s::CylindricalScalarField, Rord::Int, Zord::Int)
     return CylindricalScalarField( s.R, s.Z, s.Phi, pRpZ(s.value, Rord, Zord, R, Z) )
 end
 
 using Interpolations
-@memoize function pRpZ_interp(s::CylindricalScalarField, Rord, Zord)
+@memoize function pRpZ_interp(s::CylindricalScalarField, Rord::Int, Zord::Int)
     return linear_interpolation( 
             (s.R, s.Z, s.Phi), pRpZ(s, Rord, Zord).value )
 end
@@ -66,17 +60,6 @@ end
 
 
 
-
-
-
-
-
-
-
-
-
-export CylindricalVectorField, get_VR, get_VZ, get_VPhi, RVpoloBPhi_pRpZ, RVpoloBPhi_pRpZ_interp, RVpoloBPhi_pRpZ, RVpoloBPhi_pRpZ_interp, divergence, magnitude, cross, directional_derivative_along_v_of_s, directional_derivative_along_v1_of_v2
-
 struct CylindricalVectorField{T}
     R::Vector{T}
     Z::Vector{T}
@@ -84,26 +67,22 @@ struct CylindricalVectorField{T}
     VR::Array{T,3}
     VZ::Array{T,3}
     VPhi::Array{T,3}
+    nSym::Int
 end
+
+function CylindricalScalarField{T}(R::Vector{T}, Z::Vector{T}, Phi::Vector{T}, value::Array{T,3}; nSym::Int=1)
+    return CylindricalScalarField{T}(R, Z, Phi, value, nSym)
+end
+
 function Base.:+(v1::CylindricalVectorField, v2::CylindricalVectorField)
     return CylindricalVectorField(v1.R, v1.Z, v1.Phi, v1.VR + v2.VR, v1.VZ + v2.VZ, v1.VPhi + v2.VPhi)
-end
-function Base.:.+(v1::CylindricalVectorField, v2::CylindricalVectorField)
-    return CylindricalVectorField(v1.R, v1.Z, v1.Phi, v1.VR .+ v2.VR, v1.VZ .+ v2.VZ, v1.VPhi .+ v2.VPhi)
 end
 function Base.:*(a::Number, v::CylindricalVectorField)
     return CylindricalVectorField(v.R, v.Z, v.Phi, a * v.VR, a * v.VZ, a * v.VPhi)
 end
-function Base.:.*(a::Number, v::CylindricalVectorField)
-    return CylindricalVectorField(v.R, v.Z, v.Phi, a .* v.VR, a .* v.VZ, a .* v.VPhi)
-end
 function Base.:/(v::CylindricalVectorField, a::Number)
     return CylindricalVectorField(v.R, v.Z, v.Phi, v.VR / a, v.VZ / a, v.VPhi / a)
 end
-function Base.:./(v::CylindricalVectorField, a::Number)
-    return CylindricalVectorField(v.R, v.Z, v.Phi, v.VR ./ a, v.VZ ./ a, v.VPhi ./ a)
-end
-
 
 function get_VR(v::CylindricalVectorField)
     return CylindricalScalarField(v.R, v.Z, v.Phi, v.VR)
@@ -117,22 +96,20 @@ end
 
 
 using Memoization
-@memoize function RVpoloBPhi_pRpZ(v::CylindricalVectorField)
-    R = v.R
+@memoize function RVpoloVPhi_pRpZ(v::CylindricalVectorField)
+    R, Z = v.R, v.Z
     BR, BZ, BPhi = v.VR, v.VZ, v.VPhi
-    BRoBPhi  = get_VR(v) ./ get_VPhi(v)
-    BZoBPhi  = get_VZ(v) ./ get_VPhi(v)
 
-    A11 = BR./BPhi + R.*pRpZ( BRoBPhi,1,0).value ;
-    A12 =            R.*pRpZ( BRoBPhi,0,1).value ;
-    A21 = BZ./BPhi + R.*pRpZ( BZoBPhi,1,0).value ;
-    A22 =            R.*pRpZ( BZoBPhi,0,1).value ;
+    A11 = BR./BPhi + R.*pRpZ( BR./BPhi,1,0,R,Z) ;
+    A12 =            R.*pRpZ( BR./BPhi,0,1,R,Z) ;
+    A21 = BZ./BPhi + R.*pRpZ( BZ./BPhi,1,0,R,Z) ;
+    A22 =            R.*pRpZ( BZ./BPhi,0,1,R,Z) ;
 
     return A11, A12, A21, A22
 end
-@memoize function RVpoloBPhi_pRpZ_interp(v::CylindricalVectorField)
+@memoize function RVpoloVPhi_pRpZ_interp(v::CylindricalVectorField)
     R, Z, Phi = v.R, v.Z, v.Phi
-    A11, A12, A21, A22 = RVpoloBPhi_pRpZ(v)
+    A11, A12, A21, A22 = RVpoloVPhi_pRpZ(v)
     A11_intp = linear_interpolation( (R,Z,Phi), A11 );
     A12_intp = linear_interpolation( (R,Z,Phi), A12 );
     A21_intp = linear_interpolation( (R,Z,Phi), A21 );
@@ -143,47 +120,53 @@ end
 
 
 using TensorCast
-function RVpoloBPhi_pRpZ_delta(v::CylindricalVectorField, v_pert::CylindricalVectorField)
-    R, Z, Phi = v.R, v.Z, v.Phi
-    BRfield, BZfield, BPhifield = get_VR(v), get_VZ(v), get_VPhi(v)
-
-    BR_pR = pRpZ( BRfield, 1, 0);
-    BR_pZ = pRpZ( BRfield, 0, 1);
-    BZ_pR = pRpZ( get_VZ(v), 1, 0);
-    BZ_pZ = pRpZ( get_VZ(v), 0, 1);
-    BPhi_pR = pRpZ( get_VPhi(v), 1, 0);
-    BPhi_pZ = pRpZ( get_VPhi(v), 0, 1);
-    BR_pert_pR = pRpZ( get_VR(v_pert), 1, 0);
-    BR_pert_pZ = pRpZ( get_VR(v_pert), 0, 1);
-    BZ_pert_pR = pRpZ( get_VZ(v_pert), 1, 0);
-    BZ_pert_pZ = pRpZ( get_VZ(v_pert), 0, 1);
-    BPhi_pert_pR = pRpZ( get_VPhi(v_pert), 1, 0);
-    BPhi_pert_pZ = pRpZ( get_VPhi(v_pert), 0, 1);
+@memoize function RVpoloVPhi_pRpZ_delta_v_pert(v::CylindricalVectorField, v_pert::CylindricalVectorField)
+    R, Z = v.R, v.Z
+    BR, BZ, BPhi = v.VR, v.VZ, v.VPhi
+    BR_pR = pRpZ( v.VR, 1, 0, R, Z);
+    BR_pZ = pRpZ( v.VR, 0, 1, R, Z);
+    BZ_pR = pRpZ( v.VZ, 1, 0, R, Z); 
+    BZ_pZ = pRpZ( v.VZ, 0, 1, R, Z);
+    BPhi_pR = pRpZ( v.VPhi, 1, 0, R, Z);
+    BPhi_pZ = pRpZ( v.VPhi, 0, 1, R, Z);
+    BR_pert = v_pert.VR
+    BZ_pert = v_pert.VZ
+    BPhi_pert = v_pert.VPhi
+    BR_pert_pR = pRpZ( v_pert.VR, 1, 0, R, Z);
+    BR_pert_pZ = pRpZ( v_pert.VR, 0, 1, R, Z);
+    BZ_pert_pR = pRpZ( v_pert.VZ, 1, 0, R, Z);
+    BZ_pert_pZ = pRpZ( v_pert.VZ, 0, 1, R, Z);
+    BPhi_pert_pR = pRpZ( v_pert.VPhi, 1, 0, R, Z);
+    BPhi_pert_pZ = pRpZ( v_pert.VPhi, 0, 1, R, Z);
 
     temp1 = BR_pert ./ BPhi - BR .* BPhi_pert ./ (BPhi.^2);
     temp2 = BR_pert_pR ./ BPhi - BR_pR ./ (BPhi.^2) .* BPhi_pert - BPhi_pR ./ (BPhi.^2) .* BR_pert - BR .* (  BPhi_pert_pR .* (BPhi.^2) - 2 * BPhi_pR .* BPhi .* BPhi_pert ) ./ (BPhi.^4);
-    @cast A11_delta_DeltaB[iR,iZ,iPhi] := temp1[iR,iZ,iPhi] + R[iR] * temp2[iR,iZ,iPhi];
+    @cast A11_delta[iR,iZ,iPhi] := temp1[iR,iZ,iPhi] + R[iR] * temp2[iR,iZ,iPhi];
 
     temp1 = BZ_pert ./ BPhi - BZ .* BPhi_pert ./ (BPhi.^2);
     temp2 = BZ_pert_pR ./ BPhi - BZ_pR ./ (BPhi.^2) .* BPhi_pert - BPhi_pR ./ (BPhi.^2) .* BZ_pert - BZ .* (  BPhi_pert_pR .* (BPhi.^2) - 2 * BPhi_pR .* BPhi .* BPhi_pert ) ./ (BPhi.^4);
-    @cast A21_delta_DeltaB[iR,iZ,iPhi] := temp1[iR,iZ,iPhi] + R[iR] * temp2[iR,iZ,iPhi];
+    @cast A21_delta[iR,iZ,iPhi] := temp1[iR,iZ,iPhi] + R[iR] * temp2[iR,iZ,iPhi];
 
     temp2 = BR_pert_pZ ./ BPhi - BR_pZ ./ (BPhi.^2) .* BPhi_pert - BPhi_pZ ./ (BPhi.^2) .* BR_pert - BR .* (  BPhi_pert_pZ .* (BPhi.^2) - 2 * BPhi_pZ .* BPhi .* BPhi_pert ) ./ (BPhi.^4);
-    @cast A12_delta_DeltaB[iR,iZ,iPhi] :=                   + R[iR] * temp2[iR,iZ,iPhi];
+    @cast A12_delta[iR,iZ,iPhi] :=                   + R[iR] * temp2[iR,iZ,iPhi];
 
     temp2 = BZ_pert_pZ ./ BPhi - BZ_pZ ./ (BPhi.^2) .* BPhi_pert - BPhi_pZ ./ (BPhi.^2) .* BZ_pert - BZ .* (  BPhi_pert_pZ .* (BPhi.^2) - 2 * BPhi_pZ .* BPhi .* BPhi_pert ) ./ (BPhi.^4);
-    @cast A22_delta_DeltaB[iR,iZ,iPhi] :=                   + R[iR] * temp2[iR,iZ,iPhi];
+    @cast A22_delta[iR,iZ,iPhi] :=                   + R[iR] * temp2[iR,iZ,iPhi];
+    return A11_delta, A12_delta, A21_delta, A22_delta
+end
+@memoize function RVpoloVPhi_pRpZ_delta_v_pert_interp(v::CylindricalVectorField, v_pert::CylindricalVectorField)
+    R, Z, Phi = v.R, v.Z, v.Phi
 
-
-    A11_delta_DeltaB_interp = linear_interpolation((R,Z,Phi), A11_delta_DeltaB);
-    A12_delta_DeltaB_interp = linear_interpolation((R,Z,Phi), A12_delta_DeltaB);
-    A21_delta_DeltaB_interp = linear_interpolation((R,Z,Phi), A21_delta_DeltaB);
-    A22_delta_DeltaB_interp = linear_interpolation((R,Z,Phi), A22_delta_DeltaB);
-    @inline A_delta_DeltaB(r,z,phi) = [A11_delta_DeltaB_interp(r,z,phi) A12_delta_DeltaB_interp(r,z,phi); A21_delta_DeltaB_interp(r,z,phi) A22_delta_DeltaB_interp(r,z,phi);]
+    A11_delta, A12_delta, A21_delta, A22_delta = RVpoloVPhi_pRpZ_delta_v_pert(v::CylindricalVectorField, v_pert::CylindricalVectorField)
+    A11_delta_interp = linear_interpolation((R,Z,Phi), A11_delta);
+    A12_delta_interp = linear_interpolation((R,Z,Phi), A12_delta);
+    A21_delta_interp = linear_interpolation((R,Z,Phi), A21_delta);
+    A22_delta_interp = linear_interpolation((R,Z,Phi), A22_delta);
+    return (r,z,phi) -> [A11_delta_interp(r,z,phi) A12_delta_interp(r,z,phi); A21_delta_interp(r,z,phi) A22_delta_interp(r,z,phi);]
 end
 
 
-function divergence(v::CylindricalVectorField)
+@memoize function divergence(v::CylindricalVectorField)
     dR = v.R[2]-v.R[1];
     dZ = v.Z[2]-v.Z[1];
     dPhi = v.Phi[2]-v.Phi[1];
@@ -197,11 +180,11 @@ function divergence(v::CylindricalVectorField)
     return CylindricalScalarField(v.R, v.Z, v.Phi, ans )
 end
 
-function magnitude(v::CylindricalVectorField)
+@memoize function magnitude(v::CylindricalVectorField)
     return CylindricalScalarField(v.R, v.Z, v.Phi, sqrt.(v.VR.^2 .+ v.VZ.^2 .+ v.VPhi.^2) )
 end
 
-function cross(v1::CylindricalVectorField, v2::CylindricalVectorField)
+@memoize function cross(v1::CylindricalVectorField, v2::CylindricalVectorField)
     # TODO: check R, Z, Phi grid are identical
     return CylindricalVectorField(
         v1.R, v1.Z, v1.Phi,
@@ -273,5 +256,17 @@ function directional_derivative_along_v1_of_v2(v1::CylindricalVectorField, v2::C
     
     return CylindricalVectorField(R,Z,Phi, ans_VR, ans_VZ, ans_VPhi)
 end
+
+
+
+# pick out the functions that are built-in
+builtin_functions = Set([:eval, :include])
+
+for name in names(@__MODULE__, all=true)
+    if !(name in builtin_functions)
+        @eval export $name
+    end
+end
+
 
 end
