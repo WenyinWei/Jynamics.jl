@@ -18,12 +18,9 @@ Ranges = "eb7db99b-64ae-4b81-85c2-3439b6569b78"
 TensorCast = "02d47bb6-7ce6-556a-be16-bb1710789e2b"
 
 [compat]
-julia = ">=1.9.3"
 CSV = ">=0.10.14"
-DataFrames = ">=1.7.0"
-DifferentialEquations = ">=7.13.0"
-HDF5 = ">=0.17.2"
 IJulia = ">=1.25.0"
+DifferentialEquations = ">=7.13.0"
 Interpolations = ">=0.15.1"
 Memoization = ">=0.2.1"
 NPZ = ">=0.4.3"
@@ -31,6 +28,7 @@ NetCDF = ">=0.11.8"
 Plots = ">=1.40.8"
 Ranges = ">=0.1.0"
 TensorCast = ">=0.4.8"
+julia = ">=1.9.3"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
