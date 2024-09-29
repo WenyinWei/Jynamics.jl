@@ -3,9 +3,6 @@ module Tracing
 include("Cylind.jl")
 using .Cylind
 
-import DifferentialEquations as DE
-import LinearAlgebra as LA
-using Interpolations
 
 using Memoization
 @memoize function get_tracing_sols(v::CylindricalVectorField, r0z0, phi0::Number)
@@ -53,8 +50,6 @@ function dDPm_dphi!_generator(sols_dict::Dict{String, Any})
     end
     return dDXpol_dphi!
 end
-
-
 
 
 for name in names(@__MODULE__; all=true)
