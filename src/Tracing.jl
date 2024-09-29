@@ -1,7 +1,6 @@
 module Tracing
 
-include("Cylind.jl")
-using .Cylind
+using ..Cylind: CylindricalVectorField, VR_VZ_VPhi_interp, RVpoloVPhi_pRpZ_interp
 
 
 using Memoization
@@ -40,15 +39,16 @@ function dDXpol_dphi!_generator(sols_dict::Dict{String, Any})
 end
 
 function dDPm_dphi!_generator(sols_dict::Dict{String, Any})
+    v = sols_dict["v"]
     sol_Xpol = sols_dict["sol_Xpol"]
-    FLT_A =  RVpoloVPhi_pRpZ_interp(sols_dict["v"])
+    FLT_A =  RVpoloVPhi_pRpZ_interp(v)
 
     function dDPm_dphi!(dDPm,DPm,p,phi)
         phimod = mod( phi, 2pi/v.nSym )
         r,z = sol_Xpol(phi)
         dDPm[:,:] = FLT_A(r,z,phimod) * DPm - DPm * FLT_A(r,z,phimod) 
     end
-    return dDXpol_dphi!
+    return dDPm_dphi!
 end
 
 
