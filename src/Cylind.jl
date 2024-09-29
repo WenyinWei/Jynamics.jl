@@ -95,7 +95,15 @@ function get_VPhi(v::CylindricalVectorField)
 end
 
 
+
 using Memoization
+@memoize function VR_VZ_VPhi_interp(v::CylindricalVectorField)
+    R, Z, Phi = v.R, v.Z, v.Phi
+    BR_intp = linear_interpolation( (R,Z,Phi), v.VR )
+    BZ_intp = linear_interpolation( (R,Z,Phi), v.VZ )
+    BPhi_intp = linear_interpolation( (R,Z,Phi), v.VPhi )
+    return BR_intp, BZ_intp, BPhi_intp
+end
 @memoize function RVpoloVPhi_pRpZ(v::CylindricalVectorField)
     R, Z = v.R, v.Z
     BR, BZ, BPhi = v.VR, v.VZ, v.VPhi
@@ -120,6 +128,7 @@ end
 
 
 using TensorCast
+
 @memoize function RVpoloVPhi_pRpZ_delta_v_pert(v::CylindricalVectorField, v_pert::CylindricalVectorField)
     R, Z = v.R, v.Z
     BR, BZ, BPhi = v.VR, v.VZ, v.VPhi
