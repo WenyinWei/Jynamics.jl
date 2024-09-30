@@ -1,6 +1,6 @@
 module Tracing
 
-using ..Cylind: CylindricalVectorField, VR_VZ_VPhi_interp, RVpoloVPhi_pRpZ_interp
+using ..Cylind: CylindricalVectorField, VR_VZ_VPhi_interp, RVpoloVPhi_pRpZ_interp, RVpoloVPhi_pRpZ_delta_interp, RVpoloVPhi_pRpZ_dirderivative_interp, delta_RVpoloVPhi_interp
 
 
 using Memoization
@@ -49,6 +49,65 @@ function dDPm_dphi!_generator(sols_dict::Dict{String, Any})
         dDPm[:,:] = FLT_A(r,z,phimod) * DPm - DPm * FLT_A(r,z,phimod) 
     end
     return dDPm_dphi!
+end
+
+function d_delta_Xpol_dphi!_generator(sols_dict::Dict{String, Any})
+    v = sols_dict["v"]
+    sol_Xpol = sols_dict["sol_Xpol"]
+    FLT_A =  RVpoloVPhi_pRpZ_interp(v)
+    RBpoloBPhi_delta_DeltaB = delta_RVpoloVPhi_interp(v, sols_dict["delta_v"])
+
+    function d_delta_Xpol_dphi!(dXpol_delta, Xpol_delta, p, phi)
+        phimod = mod( phi, 2pi/v.nSym )
+        r,z = sol_Xpol(phi)
+        dXpol_delta[:] = FLT_A(r,z,phimod) * Xpol_delta + RBpoloBPhi_delta_DeltaB(r,z,phimod) 
+    end
+    return d_delta_Xpol_dphi!    
+end
+function d_delta_DXpol_dphi_init_Xcyc!_generator(sols_dict::Dict{String, Any})
+    v = sols_dict["v"]
+    v_pert = sols_dict["delta_v"]
+    sol_Xpol = sols_dict["sol_Xpol"]
+    sol_DXpol = sols_dict["sol_DXpol"]
+    sol_delta_Xcyc = sols_dict["sol_delta_Xcyc"]
+    FLT_A =  RVpoloVPhi_pRpZ_interp(v)
+    A_delta = RVpoloVPhi_pRpZ_delta_interp(v, v_pert)
+    A_dirderivative = RVpoloVPhi_pRpZ_dirderivative_interp(v)
+
+    function d_delta_Xpol_dphi_init_Xcyc!(dXpol_delta, Xpol_delta, p, phi)
+
+        phimod = mod( phi, 2pi/v.nSym )
+        r,z = sol_Xpol(phi)
+        dr, dz = sol_delta_Xcyc(phi)
+        # println( A_delta(r,z,phimod)  )
+        # println( A_dirderivative(r,z,phimod,dr,dz) ) 
+        dXpol_delta[:,:] = (A_delta(r,z,phimod) + A_dirderivative(r,z,phimod,dr,dz) ) * sol_DXpol(phi) + FLT_A(r,z,phimod) * Xpol_delta
+    end
+    return d_delta_Xpol_dphi_init_Xcyc!
+end
+
+function d_delta_DPm_dphi_init_Xcyc!_generator(sols_dict::Dict{String, Any})
+    v = sols_dict["v"]
+    v_pert = sols_dict["delta_v"]
+    sol_Xpol = sols_dict["sol_Xpol"]
+    sol_DPm = sols_dict["sol_DPm"]
+    sol_delta_Xcyc = sols_dict["sol_delta_Xcyc"]
+    FLT_A =  RVpoloVPhi_pRpZ_interp(v)
+    A_delta = RVpoloVPhi_pRpZ_delta_interp(v, v_pert)
+    A_dirderivative = RVpoloVPhi_pRpZ_dirderivative_interp(v)
+
+    function d_delta_DPm_dphi_init_Xcyc!(dDPm_delta, DPm_delta, p, phi)
+        phimod = mod( phi, 2pi/v.nSym )
+        r,z = sol_Xpol(phi)
+        dr, dz = sol_delta_Xcyc(phi)
+        dDPm_delta[:,:] = (
+            (A_delta(r,z,phimod) + A_dirderivative(r,z,phimod,dr,dz) ) * sol_DPm(phi) 
+            - sol_DPm(phi) * (A_delta(r,z,phimod) + A_dirderivative(r,z,phimod,dr,dz) ) 
+            + FLT_A(r,z,phimod) * DPm_delta 
+            - DPm_delta * FLT_A(r,z,phimod)
+        )
+    end
+    return d_delta_DPm_dphi_init_Xcyc!
 end
 
 

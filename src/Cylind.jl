@@ -128,8 +128,7 @@ end
 
 
 using TensorCast
-
-@memoize function RVpoloVPhi_pRpZ_delta_v_pert(v::CylindricalVectorField, v_pert::CylindricalVectorField)
+@memoize function RVpoloVPhi_pRpZ_delta(v::CylindricalVectorField, v_pert::CylindricalVectorField)
     R, Z = v.R, v.Z
     BR, BZ, BPhi = v.VR, v.VZ, v.VPhi
     BR_pR = pRpZ( v.VR, 1, 0, R, Z);
@@ -163,10 +162,10 @@ using TensorCast
     @cast A22_delta[iR,iZ,iPhi] :=                   + R[iR] * temp2[iR,iZ,iPhi];
     return A11_delta, A12_delta, A21_delta, A22_delta
 end
-@memoize function RVpoloVPhi_pRpZ_delta_v_pert_interp(v::CylindricalVectorField, v_pert::CylindricalVectorField)
+@memoize function RVpoloVPhi_pRpZ_delta_interp(v::CylindricalVectorField, v_pert::CylindricalVectorField)
     R, Z, Phi = v.R, v.Z, v.Phi
 
-    A11_delta, A12_delta, A21_delta, A22_delta = RVpoloVPhi_pRpZ_delta_v_pert(v::CylindricalVectorField, v_pert::CylindricalVectorField)
+    A11_delta, A12_delta, A21_delta, A22_delta = RVpoloVPhi_pRpZ_delta(v::CylindricalVectorField, v_pert::CylindricalVectorField)
     A11_delta_interp = linear_interpolation((R,Z,Phi), A11_delta);
     A12_delta_interp = linear_interpolation((R,Z,Phi), A12_delta);
     A21_delta_interp = linear_interpolation((R,Z,Phi), A21_delta);
@@ -286,7 +285,31 @@ function directional_derivative_along_v1_of_v2(v1::CylindricalVectorField, v2::C
     return CylindricalVectorField(R,Z,Phi, ans_VR, ans_VZ, ans_VPhi)
 end
 
-
+@memoize function delta_RVpoloVPhi_interp(v::CylindricalVectorField, delta_v::CylindricalVectorField)
+    R, Z, Phi = v.R, v.Z, v.Phi
+    BR, BZ, BPhi = v.VR, v.VZ, v.VPhi
+    BR_pert = delta_v.VR
+    BZ_pert = delta_v.VZ
+    BPhi_pert = delta_v.VPhi
+    delta_BRoBPhi = BR_pert ./ BPhi .- BR .* BPhi_pert ./ (BPhi.^2);
+    delta_BRoBPhi_interp = linear_interpolation( (R,Z,Phi), delta_BRoBPhi );
+    delta_BZoBPhi = BZ_pert ./ BPhi .- BZ .* BPhi_pert ./ (BPhi.^2);
+    delta_BZoBPhi_interp = linear_interpolation( (R,Z,Phi), delta_BZoBPhi );
+    return delta_RBpoloBPhi(r,z,phi) = r*[delta_BRoBPhi_interp(r,z,phi); delta_BZoBPhi_interp(r,z,phi)];
+end
+@memoize function RVpoloVPhi_pRpZ_dirderivative_interp(v::CylindricalVectorField)
+    R, Z, Phi = v.R, v.Z, v.Phi
+    BR, BZ, BPhi = v.VR, v.VZ, v.VPhi
+    RBRoBPhi_pR2  = linear_interpolation( (R,Z,Phi), 2*pRpZ(BR./BPhi,1,0,R,Z) + R.*pRpZ(BR./BPhi,2,0,R,Z) );
+    RBRoBPhi_pRpZ = linear_interpolation( (R,Z,Phi),   pRpZ(BR./BPhi,0,1,R,Z) + R.*pRpZ(BR./BPhi,1,1,R,Z) );
+    RBRoBPhi_pZ2  = linear_interpolation( (R,Z,Phi),                            R.*pRpZ(BR./BPhi,0,2,R,Z) );
+    RBZoBPhi_pR2  = linear_interpolation( (R,Z,Phi), 2*pRpZ(BZ./BPhi,1,0,R,Z) + R.*pRpZ(BZ./BPhi,2,0,R,Z) );
+    RBZoBPhi_pRpZ = linear_interpolation( (R,Z,Phi),   pRpZ(BZ./BPhi,0,1,R,Z) + R.*pRpZ(BZ./BPhi,1,1,R,Z) );
+    RBZoBPhi_pZ2  = linear_interpolation( (R,Z,Phi),                            R.*pRpZ(BZ./BPhi,0,2,R,Z) );
+    return A_dirderivative(r,z,phi,dir_r,dir_z) = [ 
+        RBRoBPhi_pR2(r,z,phi) * dir_r + RBRoBPhi_pRpZ(r,z,phi) * dir_z       RBRoBPhi_pRpZ(r,z,phi) * dir_r + RBRoBPhi_pZ2(r,z,phi)  * dir_z; 
+        RBZoBPhi_pR2(r,z,phi) * dir_r + RBZoBPhi_pRpZ(r,z,phi) * dir_z       RBZoBPhi_pRpZ(r,z,phi) * dir_r + RBZoBPhi_pZ2(r,z,phi)  * dir_z]
+end
 
 # export all
 for name in names(@__MODULE__; all=true)
