@@ -4,7 +4,7 @@ using ..Cylind: CylindricalVectorField, VR_VZ_VPhi_interp, RVpoloVPhi_pRpZ_inter
 
 
 using Memoization
-@memoize function get_tracing_sols(v::CylindricalVectorField, r0z0, phi0::Number)
+@memoize function create_tracing_sols_Dict(v::CylindricalVectorField, r0z0, phi0::Number)
     dict = Dict{String, Any}()
     dict["v"] = v  # 存储 CylindricalVectorField 实例的引用
     dict["r0z0"] = r0z0  # 存储 r0z0 的引用
@@ -64,7 +64,7 @@ function d_delta_Xpol_dphi!_generator(sols_dict::Dict{String, Any})
     end
     return d_delta_Xpol_dphi!    
 end
-function d_delta_DXpol_dphi_init_Xcyc!_generator(sols_dict::Dict{String, Any})
+function d_ddB_DXpol_with_init_Xcyc_shift!_generator(sols_dict::Dict{String, Any})
     v = sols_dict["v"]
     v_pert = sols_dict["delta_v"]
     sol_Xpol = sols_dict["sol_Xpol"]
@@ -74,19 +74,19 @@ function d_delta_DXpol_dphi_init_Xcyc!_generator(sols_dict::Dict{String, Any})
     A_delta = RVpoloVPhi_pRpZ_delta_interp(v, v_pert)
     A_dirderivative = RVpoloVPhi_pRpZ_dirderivative_interp(v)
 
-    function d_delta_Xpol_dphi_init_Xcyc!(dXpol_delta, Xpol_delta, p, phi)
+    function d_ddB_DXpol_with_init_Xcyc_shift!(dDXpol_delta, DXpol_delta, p, phi)
 
         phimod = mod( phi, 2pi/v.nSym )
         r,z = sol_Xpol(phi)
         dr, dz = sol_delta_Xcyc(phi)
         # println( A_delta(r,z,phimod)  )
         # println( A_dirderivative(r,z,phimod,dr,dz) ) 
-        dXpol_delta[:,:] = (A_delta(r,z,phimod) + A_dirderivative(r,z,phimod,dr,dz) ) * sol_DXpol(phi) + FLT_A(r,z,phimod) * Xpol_delta
+        dDXpol_delta[:,:] = (A_delta(r,z,phimod) + A_dirderivative(r,z,phimod,dr,dz) ) * sol_DXpol(phi) + FLT_A(r,z,phimod) * DXpol_delta
     end
-    return d_delta_Xpol_dphi_init_Xcyc!
+    return d_ddB_DXpol_with_init_Xcyc_shift!
 end
 
-function d_delta_DPm_dphi_init_Xcyc!_generator(sols_dict::Dict{String, Any})
+function d_ddB_DPm_with_init_Xcyc_shift!_generator(sols_dict::Dict{String, Any})
     v = sols_dict["v"]
     v_pert = sols_dict["delta_v"]
     sol_Xpol = sols_dict["sol_Xpol"]
@@ -96,7 +96,7 @@ function d_delta_DPm_dphi_init_Xcyc!_generator(sols_dict::Dict{String, Any})
     A_delta = RVpoloVPhi_pRpZ_delta_interp(v, v_pert)
     A_dirderivative = RVpoloVPhi_pRpZ_dirderivative_interp(v)
 
-    function d_delta_DPm_dphi_init_Xcyc!(dDPm_delta, DPm_delta, p, phi)
+    function d_ddB_DPm_with_init_Xcyc_shift!(dDPm_delta, DPm_delta, p, phi)
         phimod = mod( phi, 2pi/v.nSym )
         r,z = sol_Xpol(phi)
         dr, dz = sol_delta_Xcyc(phi)
@@ -107,7 +107,7 @@ function d_delta_DPm_dphi_init_Xcyc!_generator(sols_dict::Dict{String, Any})
             - DPm_delta * FLT_A(r,z,phimod)
         )
     end
-    return d_delta_DPm_dphi_init_Xcyc!
+    return d_ddB_DPm_with_init_Xcyc_shift!
 end
 
 
