@@ -64,6 +64,9 @@ function d_delta_Xpol_dphi!_generator(sols_dict::Dict{String, Any})
     end
     return d_delta_Xpol_dphi!    
 end
+
+d_delta_Xcyc_dphi!_generator = d_delta_Xpol_dphi!_generator
+
 function d_ddB_DXpol_with_init_Xcyc_shift!_generator(sols_dict::Dict{String, Any})
     v = sols_dict["v"]
     v_pert = sols_dict["delta_v"]
